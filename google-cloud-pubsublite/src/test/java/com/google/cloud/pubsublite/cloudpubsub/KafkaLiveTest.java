@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.Test;
+import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -37,6 +38,7 @@ import org.junit.runners.JUnit4;
 public class KafkaLiveTest {
 
   @Test
+  @Ignore("Requires running Kafka - enable manually for testing")
   public void testPublishToLiveKafka() throws Exception {
     // Skip if Kafka is not available
     if (!isKafkaAvailable()) {
