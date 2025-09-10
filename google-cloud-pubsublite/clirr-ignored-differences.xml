@@ -56,4 +56,15 @@
     <className>com/google/cloud/pubsublite/internal/**</className>
     <method>*</method>
   </difference>
+  <!-- Ignore addition of messagingBackend() method to PublisherSettings -->
+  <difference>
+    <differenceType>7013</differenceType>
+    <className>com/google/cloud/pubsublite/cloudpubsub/PublisherSettings</className>
+    <method>java.util.Optional kafkaProperties()</method>
+  </difference>
+  <difference>
+    <differenceType>7013</differenceType>
+    <className>com/google/cloud/pubsublite/cloudpubsub/PublisherSettings</className>
+    <method>com.google.cloud.pubsublite.cloudpubsub.MessagingBackend messagingBackend()</method>
+  </difference>
 </differences>

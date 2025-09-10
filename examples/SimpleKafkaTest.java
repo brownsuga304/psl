@@ -5,6 +5,8 @@
  * you may not use this file except in compliance with the License.
  */
 
+package com.google.cloud.pubsublite.cloudpubsub;
+
 import com.google.api.core.ApiFuture;
 import com.google.cloud.pubsublite.CloudRegion;
 import com.google.cloud.pubsublite.CloudZone;
