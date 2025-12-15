@@ -127,6 +127,20 @@
       <optional>true</optional>
     </dependency>
 
+    <!-- Google Managed Kafka authentication handler -->
+    <dependency>
+      <groupId>com.google.cloud.hosted.kafka</groupId>
+      <artifactId>managed-kafka-auth-login-handler</artifactId>
+      <version>1.0.6</version>
+      <optional>true</optional>
+      <exclusions>
+        <exclusion>
+          <groupId>io.confluent</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
     <!-- Test dependencies for Kafka integration tests -->
     <dependency>
       <groupId>org.testcontainers</groupId>
