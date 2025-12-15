@@ -203,46 +203,77 @@ public class KafkaSubscriber extends AbstractApiService implements Subscriber {
     });
   }
 
+  /**
+   * Converts a Kafka ConsumerRecord to a PubsubMessage.
+   *
+   * Translation rules:
+   * - Data: Bytes -> Bytes (direct pass-through)
+   * - Key: Kafka key -> PubSub orderingKey (preserves ordering logic)
+   * - Headers: Kafka headers -> PubSub attributes (multi-value headers are flattened)
+   * - Timestamp: Kafka timestamp (Unix epoch millis) -> Protobuf Timestamp
+   */
   private PubsubMessage convertToPubsubMessage(ConsumerRecord<byte[], byte[]> record) {
     PubsubMessage.Builder builder = PubsubMessage.newBuilder();
 
-    // Set message data
+    // Data: direct bytes pass-through
     if (record.value() != null) {
       builder.setData(ByteString.copyFrom(record.value()));
     }
 
-    // Set ordering key from Kafka key if present
+    // Key: Kafka key becomes ordering key (preserves partitioning/ordering)
     if (record.key() != null) {
-      builder.setOrderingKey(new String(record.key()));
+      builder.setOrderingKey(new String(record.key(), java.nio.charset.StandardCharsets.UTF_8));
     }
 
-    // Convert headers to attributes
+    // Convert Kafka timestamp (Unix epoch milliseconds) to Protobuf Timestamp
+    long timestampMs = record.timestamp();
+    if (timestampMs > 0) {
+      long seconds = timestampMs / 1000;
+      int nanos = (int) ((timestampMs % 1000) * 1_000_000);
+      builder.setPublishTime(Timestamp.newBuilder()
+          .setSeconds(seconds)
+          .setNanos(nanos)
+          .build());
+    }
+
+    // Headers: Convert Kafka headers to PubSub attributes
+    // For multi-value headers with the same key, we use indexed suffixes
     Map<String, String> attributes = new HashMap<>();
+    Map<String, Integer> headerCounts = new HashMap<>();
+
     for (Header header : record.headers()) {
       if (header.value() != null) {
-        // Skip special headers
-        if (header.key().equals("pubsublite.publish_time")) {
-          try {
-            long seconds = Long.parseLong(new String(header.value()));
-            builder.setPublishTime(Timestamp.newBuilder().setSeconds(seconds).build());
-          } catch (NumberFormatException e) {
-            // Ignore invalid timestamp
-          }
-        } else {
-          attributes.put(header.key(), new String(header.value()));
+        String key = header.key();
+        String value = new String(header.value(), java.nio.charset.StandardCharsets.UTF_8);
+
+        // Handle special headers that map to PubsubMessage fields
+        if (key.equals("pubsublite.publish_time")) {
+          // Already handled via record.timestamp()
+          continue;
         }
+
+        // Handle multi-value attributes by appending index suffix
+        int count = headerCounts.getOrDefault(key, 0);
+        if (count == 0) {
+          attributes.put(key, value);
+        } else {
+          // For subsequent values, use indexed key: "key.1", "key.2", etc.
+          attributes.put(key + "." + count, value);
+        }
+        headerCounts.put(key, count + 1);
       }
     }
 
-    // Add Kafka-specific metadata as attributes
-    attributes.put("kafka.topic", record.topic());
-    attributes.put("kafka.partition", String.valueOf(record.partition()));
-    attributes.put("kafka.offset", String.valueOf(record.offset()));
-    attributes.put("kafka.timestamp", String.valueOf(record.timestamp()));
+    // Add Kafka-specific metadata as special attributes
+    attributes.put("x-kafka-topic", record.topic());
+    attributes.put("x-kafka-partition", String.valueOf(record.partition()));
+    attributes.put("x-kafka-offset", String.valueOf(record.offset()));
+    attributes.put("x-kafka-timestamp-ms", String.valueOf(record.timestamp()));
+    attributes.put("x-kafka-timestamp-type", record.timestampType().name());
 
     builder.putAllAttributes(attributes);
 
-    // Set message ID (this will be overridden by the framework)
+    // Set message ID in format: topic:partition:offset
     builder.setMessageId(String.format("%s:%d:%d",
         record.topic(), record.partition(), record.offset()));
 
