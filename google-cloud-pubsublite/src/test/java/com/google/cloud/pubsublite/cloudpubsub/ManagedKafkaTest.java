@@ -31,11 +31,10 @@ import java.util.concurrent.TimeUnit;
 /**
  * Simple test for Google Managed Kafka publisher.
  *
- * Run with:
- *   ./test-managed-kafka.sh BOOTSTRAP_SERVER TOPIC_NAME
+ * <p>Run with: ./test-managed-kafka.sh BOOTSTRAP_SERVER TOPIC_NAME
  *
- * Example:
- *   ./test-managed-kafka.sh bootstrap.test-kafka.us-central1.managedkafka.myproject.cloud.goog:9092 test-topic
+ * <p>Example: ./test-managed-kafka.sh
+ * bootstrap.test-kafka.us-central1.managedkafka.myproject.cloud.goog:9092 test-topic
  */
 public class ManagedKafkaTest {
 
@@ -48,7 +47,8 @@ public class ManagedKafkaTest {
       System.out.println("Usage: ManagedKafkaTest <BOOTSTRAP_SERVER> <TOPIC_NAME>");
       System.out.println();
       System.out.println("Example:");
-      System.out.println("  ./test-managed-kafka.sh bootstrap.test-kafka.us-central1.managedkafka.myproject.cloud.goog:9092 test-topic");
+      System.out.println(
+          "  ./test-managed-kafka.sh bootstrap.test-kafka.us-central1.managedkafka.myproject.cloud.goog:9092 test-topic");
       System.exit(1);
     }
 
@@ -60,20 +60,23 @@ public class ManagedKafkaTest {
     System.out.println();
 
     // Build topic path (project/zone not used for Kafka, but required by API)
-    TopicPath topicPath = TopicPath.newBuilder()
-        .setProject(ProjectNumber.of(1L))
-        .setLocation(CloudZone.of(CloudRegion.of("us-central1"), 'a'))
-        .setName(TopicName.of(topicName))
-        .build();
+    TopicPath topicPath =
+        TopicPath.newBuilder()
+            .setProject(ProjectNumber.of(1L))
+            .setLocation(CloudZone.of(CloudRegion.of("us-central1"), 'a'))
+            .setName(TopicName.of(topicName))
+            .build();
 
     // Kafka properties for Google Managed Kafka
     Map<String, Object> kafkaProps = new HashMap<>();
     kafkaProps.put("bootstrap.servers", bootstrapServers);
     kafkaProps.put("security.protocol", "SASL_SSL");
     kafkaProps.put("sasl.mechanism", "OAUTHBEARER");
-    kafkaProps.put("sasl.login.callback.handler.class",
+    kafkaProps.put(
+        "sasl.login.callback.handler.class",
         "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler");
-    kafkaProps.put("sasl.jaas.config",
+    kafkaProps.put(
+        "sasl.jaas.config",
         "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;");
 
     // Reliability settings
@@ -82,11 +85,12 @@ public class ManagedKafkaTest {
     kafkaProps.put("request.timeout.ms", 30000);
 
     // Build publisher settings
-    PublisherSettings settings = PublisherSettings.newBuilder()
-        .setTopicPath(topicPath)
-        .setMessagingBackend(MessagingBackend.MANAGED_KAFKA)
-        .setKafkaProperties(kafkaProps)
-        .build();
+    PublisherSettings settings =
+        PublisherSettings.newBuilder()
+            .setTopicPath(topicPath)
+            .setMessagingBackend(MessagingBackend.MANAGED_KAFKA)
+            .setKafkaProperties(kafkaProps)
+            .build();
 
     System.out.println("Creating publisher...");
     Publisher publisher = Publisher.create(settings);
@@ -101,11 +105,12 @@ public class ManagedKafkaTest {
       for (int i = 1; i <= 3; i++) {
         String payload = "Test message #" + i + " at " + System.currentTimeMillis();
 
-        PubsubMessage message = PubsubMessage.newBuilder()
-            .setData(ByteString.copyFromUtf8(payload))
-            .putAttributes("test", "true")
-            .putAttributes("index", String.valueOf(i))
-            .build();
+        PubsubMessage message =
+            PubsubMessage.newBuilder()
+                .setData(ByteString.copyFromUtf8(payload))
+                .putAttributes("test", "true")
+                .putAttributes("index", String.valueOf(i))
+                .build();
 
         System.out.println("Publishing: " + payload);
         ApiFuture<String> future = publisher.publish(message);

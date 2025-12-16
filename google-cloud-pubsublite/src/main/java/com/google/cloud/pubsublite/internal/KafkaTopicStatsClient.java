@@ -18,7 +18,6 @@ package com.google.cloud.pubsublite.internal;
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
-import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.pubsublite.CloudRegion;
 import com.google.cloud.pubsublite.Offset;
@@ -27,12 +26,8 @@ import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
 import com.google.cloud.pubsublite.proto.Cursor;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.Timestamp;
-import java.time.Duration;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -207,6 +202,7 @@ public class KafkaTopicStatsClient implements TopicStatsClient {
    * Computes the approximate backlog in bytes for a consumer group on a partition.
    *
    * <p>The backlog is calculated by:
+   *
    * <ol>
    *   <li>Getting the consumer's committed offset
    *   <li>Getting the latest offset (log end offset)
@@ -266,8 +262,7 @@ public class KafkaTopicStatsClient implements TopicStatsClient {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return ApiFutures.immediateFailedFuture(
-          new CheckedApiException(
-                  "Interrupted while computing backlog", StatusCode.Code.ABORTED)
+          new CheckedApiException("Interrupted while computing backlog", StatusCode.Code.ABORTED)
               .underlying);
     } catch (ExecutionException e) {
       log.log(Level.WARNING, "Failed to compute backlog", e);
@@ -279,9 +274,7 @@ public class KafkaTopicStatsClient implements TopicStatsClient {
     }
   }
 
-  /**
-   * Container for backlog information.
-   */
+  /** Container for backlog information. */
   public static class BacklogInfo {
     private final long messageCount;
     private final long estimatedBytes;
@@ -303,7 +296,8 @@ public class KafkaTopicStatsClient implements TopicStatsClient {
 
     @Override
     public String toString() {
-      return String.format("BacklogInfo{messages=%d, estimatedBytes=%d}", messageCount, estimatedBytes);
+      return String.format(
+          "BacklogInfo{messages=%d, estimatedBytes=%d}", messageCount, estimatedBytes);
     }
   }
 

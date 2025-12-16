@@ -18,12 +18,10 @@ package com.google.cloud.pubsublite.cloudpubsub.internal;
 
 import com.google.api.core.AbstractApiService;
 import com.google.api.core.ApiService;
-import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsublite.cloudpubsub.Subscriber;
 import com.google.cloud.pubsublite.cloudpubsub.SubscriberSettings;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.PubsubMessage;
@@ -31,7 +29,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,7 +36,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -50,8 +46,8 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 
 /**
- * A Kafka-based subscriber that uses KafkaConsumer to consume messages from Kafka topics.
- * This implementation is designed to work with Google Managed Kafka (GMK) clusters.
+ * A Kafka-based subscriber that uses KafkaConsumer to consume messages from Kafka topics. This
+ * implementation is designed to work with Google Managed Kafka (GMK) clusters.
  */
 public class KafkaSubscriber extends AbstractApiService implements Subscriber {
   private static final Logger log = Logger.getLogger(KafkaSubscriber.class.getName());
@@ -81,15 +77,17 @@ public class KafkaSubscriber extends AbstractApiService implements Subscriber {
     this.topicName = settings.subscriptionPath().name().value();
     this.groupId = settings.subscriptionPath().toString().replace('/', '-');
     this.receiver = settings.receiver();
-    this.pollExecutor = Executors.newSingleThreadExecutor(
-        r -> {
-          Thread t = new Thread(r, "kafka-subscriber-poll-" + topicName);
-          t.setDaemon(true);
-          return t;
-        });
+    this.pollExecutor =
+        Executors.newSingleThreadExecutor(
+            r -> {
+              Thread t = new Thread(r, "kafka-subscriber-poll-" + topicName);
+              t.setDaemon(true);
+              return t;
+            });
 
     // Set up Kafka consumer configuration
-    Map<String, Object> kafkaProps = new HashMap<>(settings.kafkaProperties().orElse(new HashMap<>()));
+    Map<String, Object> kafkaProps =
+        new HashMap<>(settings.kafkaProperties().orElse(new HashMap<>()));
 
     // Set required properties
     kafkaProps.putIfAbsent("key.deserializer", ByteArrayDeserializer.class.getName());
@@ -107,12 +105,14 @@ public class KafkaSubscriber extends AbstractApiService implements Subscriber {
       if (e.getCause() instanceof org.apache.kafka.common.config.ConfigException
           && e.getMessage().contains("No resolvable bootstrap urls")) {
         throw new RuntimeException(
-            "Failed to resolve Kafka bootstrap servers: " + bootstrapServers + ". " +
-            "This could indicate:\n" +
-            "1. The Google Managed Kafka cluster doesn't exist or isn't accessible\n" +
-            "2. Network/DNS resolution issues\n" +
-            "3. Incorrect bootstrap server URL format\n" +
-            "Please verify the cluster exists with: gcloud managed-kafka clusters describe <cluster-name> --location=<region> --project=<project>",
+            "Failed to resolve Kafka bootstrap servers: "
+                + bootstrapServers
+                + ". "
+                + "This could indicate:\n"
+                + "1. The Google Managed Kafka cluster doesn't exist or isn't accessible\n"
+                + "2. Network/DNS resolution issues\n"
+                + "3. Incorrect bootstrap server URL format\n"
+                + "Please verify the cluster exists with: gcloud managed-kafka clusters describe <cluster-name> --location=<region> --project=<project>",
             e);
       }
       throw new RuntimeException("Failed to initialize Kafka consumer: " + e.getMessage(), e);
@@ -128,89 +128,94 @@ public class KafkaSubscriber extends AbstractApiService implements Subscriber {
     kafkaConsumer.subscribe(Collections.singletonList(topicName));
 
     // Start the polling loop
-    pollExecutor.submit(() -> {
-      try {
-        while (isPolling.get() && !Thread.currentThread().isInterrupted()) {
+    pollExecutor.submit(
+        () -> {
           try {
-            ConsumerRecords<byte[], byte[]> records = kafkaConsumer.poll(Duration.ofMillis(100));
-
-            for (ConsumerRecord<byte[], byte[]> record : records) {
-              if (!isPolling.get()) break;
-
+            while (isPolling.get() && !Thread.currentThread().isInterrupted()) {
               try {
-                // Convert Kafka record to PubsubMessage
-                PubsubMessage message = convertToPubsubMessage(record);
+                ConsumerRecords<byte[], byte[]> records =
+                    kafkaConsumer.poll(Duration.ofMillis(100));
 
-                // Generate a unique message ID
-                String messageId = String.format("%s:%d:%d",
-                    record.topic(), record.partition(), record.offset());
+                for (ConsumerRecord<byte[], byte[]> record : records) {
+                  if (!isPolling.get()) break;
 
-                // Store offset info for later acknowledgment
-                pendingAcks.put(messageId, new OffsetInfo(
-                    new TopicPartition(record.topic(), record.partition()),
-                    record.offset(),
-                    record.timestamp()));
+                  try {
+                    // Convert Kafka record to PubsubMessage
+                    PubsubMessage message = convertToPubsubMessage(record);
 
-                // Create AckReplyConsumer for this message
-                AckReplyConsumer ackReplyConsumer = new AckReplyConsumer() {
-                  private final AtomicBoolean acked = new AtomicBoolean(false);
+                    // Generate a unique message ID
+                    String messageId =
+                        String.format(
+                            "%s:%d:%d", record.topic(), record.partition(), record.offset());
 
-                  @Override
-                  public void ack() {
-                    if (acked.compareAndSet(false, true)) {
-                      commitOffset(messageId);
-                    }
+                    // Store offset info for later acknowledgment
+                    pendingAcks.put(
+                        messageId,
+                        new OffsetInfo(
+                            new TopicPartition(record.topic(), record.partition()),
+                            record.offset(),
+                            record.timestamp()));
+
+                    // Create AckReplyConsumer for this message
+                    AckReplyConsumer ackReplyConsumer =
+                        new AckReplyConsumer() {
+                          private final AtomicBoolean acked = new AtomicBoolean(false);
+
+                          @Override
+                          public void ack() {
+                            if (acked.compareAndSet(false, true)) {
+                              commitOffset(messageId);
+                            }
+                          }
+
+                          @Override
+                          public void nack() {
+                            if (acked.compareAndSet(false, true)) {
+                              // In Kafka, nack typically means we don't commit the offset
+                              // The message will be redelivered after session timeout
+                              log.info("Message nacked, will be redelivered: " + messageId);
+                              pendingAcks.remove(messageId);
+                            }
+                          }
+                        };
+
+                    // Deliver message to receiver
+                    receiver.receiveMessage(message, ackReplyConsumer);
+
+                  } catch (Exception e) {
+                    log.log(Level.WARNING, "Error processing message from Kafka", e);
                   }
+                }
 
-                  @Override
-                  public void nack() {
-                    if (acked.compareAndSet(false, true)) {
-                      // In Kafka, nack typically means we don't commit the offset
-                      // The message will be redelivered after session timeout
-                      log.info("Message nacked, will be redelivered: " + messageId);
-                      pendingAcks.remove(messageId);
-                    }
-                  }
-                };
-
-                // Deliver message to receiver
-                receiver.receiveMessage(message, ackReplyConsumer);
-
+              } catch (WakeupException e) {
+                // This is expected when consumer.wakeup() is called
+                break;
               } catch (Exception e) {
-                log.log(Level.WARNING, "Error processing message from Kafka", e);
+                log.log(Level.SEVERE, "Error in Kafka poll loop", e);
+                if (!isPolling.get()) break;
+
+                // Sleep briefly before retrying
+                try {
+                  Thread.sleep(1000);
+                } catch (InterruptedException ie) {
+                  Thread.currentThread().interrupt();
+                  break;
+                }
               }
             }
-
-          } catch (WakeupException e) {
-            // This is expected when consumer.wakeup() is called
-            break;
-          } catch (Exception e) {
-            log.log(Level.SEVERE, "Error in Kafka poll loop", e);
-            if (!isPolling.get()) break;
-
-            // Sleep briefly before retrying
-            try {
-              Thread.sleep(1000);
-            } catch (InterruptedException ie) {
-              Thread.currentThread().interrupt();
-              break;
-            }
+          } finally {
+            isPolling.set(false);
           }
-        }
-      } finally {
-        isPolling.set(false);
-      }
-    });
+        });
   }
 
   /**
    * Converts a Kafka ConsumerRecord to a PubsubMessage.
    *
-   * Translation rules:
-   * - Data: Bytes -> Bytes (direct pass-through)
-   * - Key: Kafka key -> PubSub orderingKey (preserves ordering logic)
-   * - Headers: Kafka headers -> PubSub attributes (multi-value headers are flattened)
-   * - Timestamp: Kafka timestamp (Unix epoch millis) -> Protobuf Timestamp
+   * <p>Translation rules: - Data: Bytes -> Bytes (direct pass-through) - Key: Kafka key -> PubSub
+   * orderingKey (preserves ordering logic) - Headers: Kafka headers -> PubSub attributes
+   * (multi-value headers are flattened) - Timestamp: Kafka timestamp (Unix epoch millis) ->
+   * Protobuf Timestamp
    */
   private PubsubMessage convertToPubsubMessage(ConsumerRecord<byte[], byte[]> record) {
     PubsubMessage.Builder builder = PubsubMessage.newBuilder();
@@ -230,10 +235,7 @@ public class KafkaSubscriber extends AbstractApiService implements Subscriber {
     if (timestampMs > 0) {
       long seconds = timestampMs / 1000;
       int nanos = (int) ((timestampMs % 1000) * 1_000_000);
-      builder.setPublishTime(Timestamp.newBuilder()
-          .setSeconds(seconds)
-          .setNanos(nanos)
-          .build());
+      builder.setPublishTime(Timestamp.newBuilder().setSeconds(seconds).setNanos(nanos).build());
     }
 
     // Headers: Convert Kafka headers to PubSub attributes
@@ -274,25 +276,36 @@ public class KafkaSubscriber extends AbstractApiService implements Subscriber {
     builder.putAllAttributes(attributes);
 
     // Set message ID in format: topic:partition:offset
-    builder.setMessageId(String.format("%s:%d:%d",
-        record.topic(), record.partition(), record.offset()));
+    builder.setMessageId(
+        String.format("%s:%d:%d", record.topic(), record.partition(), record.offset()));
 
     return builder.build();
   }
 
   private void commitOffset(String messageId) {
     OffsetInfo info = pendingAcks.remove(messageId);
-    if (info != null) {
-      try {
-        // Commit the offset for this message
-        Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
-        offsets.put(info.partition, new OffsetAndMetadata(info.offset + 1));
-        kafkaConsumer.commitSync(offsets);
+    if (info == null) {
+      return;
+    }
 
-        log.fine("Committed offset for message: " + messageId);
-      } catch (Exception e) {
-        log.log(Level.WARNING, "Failed to commit offset for message: " + messageId, e);
-      }
+    // Skip commit if we're shutting down
+    if (!isPolling.get()) {
+      log.fine("Skipping offset commit during shutdown for message: " + messageId);
+      return;
+    }
+
+    try {
+      // Commit the offset for this message
+      Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
+      offsets.put(info.partition, new OffsetAndMetadata(info.offset + 1));
+      kafkaConsumer.commitSync(offsets);
+
+      log.fine("Committed offset for message: " + messageId);
+    } catch (WakeupException e) {
+      // This is expected during shutdown - consumer.wakeup() was called
+      log.fine("Offset commit interrupted by shutdown for message: " + messageId);
+    } catch (Exception e) {
+      log.log(Level.WARNING, "Failed to commit offset for message: " + messageId, e);
     }
   }
 

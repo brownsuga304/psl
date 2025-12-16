@@ -16,19 +16,17 @@
 
 package com.google.cloud.pubsublite.cloudpubsub;
 
-/**
- * Specifies the messaging backend to use for Publisher and Subscriber clients.
- */
+/** Specifies the messaging backend to use for Publisher and Subscriber clients. */
 public enum MessagingBackend {
   /**
-   * Use Google Cloud Pub/Sub Lite (default).
-   * This is the traditional backend with zonal storage and predictable pricing.
+   * Use Google Cloud Pub/Sub Lite (default). This is the traditional backend with zonal storage and
+   * predictable pricing.
    */
   PUBSUB_LITE,
-  
+
   /**
-   * Use Google Cloud Managed Service for Apache Kafka.
-   * Provides Kafka-compatible API with Google Cloud management.
+   * Use Google Cloud Managed Service for Apache Kafka. Provides Kafka-compatible API with Google
+   * Cloud management.
    */
   MANAGED_KAFKA
 }

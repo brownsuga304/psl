@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -41,9 +40,8 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
 import org.junit.Ignore;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.testcontainers.containers.KafkaContainer;
@@ -56,9 +54,8 @@ public class KafkaIntegrationTest {
 
   private static final String KAFKA_IMAGE = "confluentinc/cp-kafka:7.4.0";
   private static final String TEST_TOPIC = "test-topic";
-  
-  @Container
-  public KafkaContainer kafka = new KafkaContainer(DockerImageName.parse(KAFKA_IMAGE));
+
+  @Container public KafkaContainer kafka = new KafkaContainer(DockerImageName.parse(KAFKA_IMAGE));
 
   private Publisher publisher;
   private KafkaConsumer<byte[], byte[]> kafkaConsumer;
@@ -66,13 +63,14 @@ public class KafkaIntegrationTest {
   @Before
   public void setUp() throws Exception {
     kafka.start();
-    
+
     // Create topic path
-    TopicPath topicPath = TopicPath.newBuilder()
-        .setProject(ProjectNumber.of(123456L))
-        .setLocation(CloudZone.of(CloudRegion.of("us-central1"), 'a'))
-        .setName(TopicName.of(TEST_TOPIC))
-        .build();
+    TopicPath topicPath =
+        TopicPath.newBuilder()
+            .setProject(ProjectNumber.of(123456L))
+            .setLocation(CloudZone.of(CloudRegion.of("us-central1"), 'a'))
+            .setName(TopicName.of(TEST_TOPIC))
+            .build();
 
     // Configure Kafka properties
     Map<String, Object> kafkaProperties = new HashMap<>();
@@ -81,11 +79,12 @@ public class KafkaIntegrationTest {
     kafkaProperties.put("retries", 3);
 
     // Create publisher settings for Kafka
-    PublisherSettings settings = PublisherSettings.newBuilder()
-        .setTopicPath(topicPath)
-        .setMessagingBackend(MessagingBackend.MANAGED_KAFKA)
-        .setKafkaProperties(kafkaProperties)
-        .build();
+    PublisherSettings settings =
+        PublisherSettings.newBuilder()
+            .setTopicPath(topicPath)
+            .setMessagingBackend(MessagingBackend.MANAGED_KAFKA)
+            .setKafkaProperties(kafkaProperties)
+            .build();
 
     // Create and start publisher
     publisher = Publisher.create(settings);
@@ -98,7 +97,7 @@ public class KafkaIntegrationTest {
     consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
     consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
     consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-    
+
     kafkaConsumer = new KafkaConsumer<>(consumerProps);
     kafkaConsumer.subscribe(java.util.Arrays.asList(TEST_TOPIC));
   }
@@ -117,11 +116,12 @@ public class KafkaIntegrationTest {
   @Test
   public void testPublishSingleMessage() throws Exception {
     // Create test message
-    PubsubMessage message = PubsubMessage.newBuilder()
-        .setData(ByteString.copyFromUtf8("Hello Kafka!"))
-        .putAttributes("source", "integration-test")
-        .putAttributes("timestamp", String.valueOf(System.currentTimeMillis()))
-        .build();
+    PubsubMessage message =
+        PubsubMessage.newBuilder()
+            .setData(ByteString.copyFromUtf8("Hello Kafka!"))
+            .putAttributes("source", "integration-test")
+            .putAttributes("timestamp", String.valueOf(System.currentTimeMillis()))
+            .build();
 
     // Publish message
     ApiFuture<String> future = publisher.publish(message);
@@ -138,7 +138,8 @@ public class KafkaIntegrationTest {
     ConsumerRecord<byte[], byte[]> record = records.iterator().next();
     assertThat(new String(record.value())).isEqualTo("Hello Kafka!");
     assertThat(record.headers().lastHeader("source")).isNotNull();
-    assertThat(new String(record.headers().lastHeader("source").value())).isEqualTo("integration-test");
+    assertThat(new String(record.headers().lastHeader("source").value()))
+        .isEqualTo("integration-test");
   }
 
   @Test
@@ -148,10 +149,11 @@ public class KafkaIntegrationTest {
 
     // Publish multiple messages
     for (int i = 0; i < messageCount; i++) {
-      PubsubMessage message = PubsubMessage.newBuilder()
-          .setData(ByteString.copyFromUtf8("Message " + i))
-          .putAttributes("messageNumber", String.valueOf(i))
-          .build();
+      PubsubMessage message =
+          PubsubMessage.newBuilder()
+              .setData(ByteString.copyFromUtf8("Message " + i))
+              .putAttributes("messageNumber", String.valueOf(i))
+              .build();
 
       ApiFuture<String> future = publisher.publish(message);
       futures.add(future);
@@ -200,11 +202,12 @@ public class KafkaIntegrationTest {
   @Test
   public void testPublishWithOrderingKey() throws Exception {
     // Create message with ordering key
-    PubsubMessage message = PubsubMessage.newBuilder()
-        .setData(ByteString.copyFromUtf8("Ordered message"))
-        .setOrderingKey("test-key")
-        .putAttributes("ordered", "true")
-        .build();
+    PubsubMessage message =
+        PubsubMessage.newBuilder()
+            .setData(ByteString.copyFromUtf8("Ordered message"))
+            .setOrderingKey("test-key")
+            .putAttributes("ordered", "true")
+            .build();
 
     // Publish message
     ApiFuture<String> future = publisher.publish(message);
@@ -225,10 +228,9 @@ public class KafkaIntegrationTest {
   public void testPublishToInvalidTopic() throws Exception {
     // Try to publish when Kafka is stopped (should fail)
     kafka.stop();
-    
-    PubsubMessage message = PubsubMessage.newBuilder()
-        .setData(ByteString.copyFromUtf8("This should fail"))
-        .build();
+
+    PubsubMessage message =
+        PubsubMessage.newBuilder().setData(ByteString.copyFromUtf8("This should fail")).build();
 
     ApiFuture<String> future = publisher.publish(message);
     // This should throw ExecutionException due to connection failure

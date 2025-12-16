@@ -19,7 +19,6 @@ package com.google.cloud.pubsublite.internal;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.api.gax.longrunning.OperationFuture;
-import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.pubsublite.AdminClient;
 import com.google.cloud.pubsublite.BacklogLocation;
@@ -38,24 +37,12 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.FieldMask;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.apache.kafka.clients.admin.ConsumerGroupDescription;
-import org.apache.kafka.clients.admin.DeleteConsumerGroupsResult;
-import org.apache.kafka.clients.admin.DescribeConsumerGroupsResult;
-import org.apache.kafka.clients.admin.DescribeTopicsResult;
-import org.apache.kafka.clients.admin.ListConsumerGroupsResult;
-import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.KafkaFuture;
@@ -65,10 +52,9 @@ import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 /**
  * An AdminClient implementation that wraps Kafka's AdminClient.
  *
- * <p>This maps Pub/Sub Lite admin operations to Kafka admin operations:
- * - Topics: Create/Delete/List/Get mapped to Kafka topic operations
- * - Subscriptions: Mapped to Kafka consumer groups
- * - Reservations: No-ops (PSL-specific feature that doesn't exist in Kafka)
+ * <p>This maps Pub/Sub Lite admin operations to Kafka admin operations: - Topics:
+ * Create/Delete/List/Get mapped to Kafka topic operations - Subscriptions: Mapped to Kafka consumer
+ * groups - Reservations: No-ops (PSL-specific feature that doesn't exist in Kafka)
  */
 public class KafkaAdminClient implements AdminClient {
   private static final Logger log = Logger.getLogger(KafkaAdminClient.class.getName());
@@ -112,9 +98,10 @@ public class KafkaAdminClient implements AdminClient {
   @Override
   public ApiFuture<Topic> createTopic(Topic topic) {
     String topicName = extractTopicName(topic.getName());
-    int partitions = topic.getPartitionConfig().getCount() > 0
-        ? (int) topic.getPartitionConfig().getCount()
-        : defaultPartitions;
+    int partitions =
+        topic.getPartitionConfig().getCount() > 0
+            ? (int) topic.getPartitionConfig().getCount()
+            : defaultPartitions;
 
     NewTopic newTopic = new NewTopic(topicName, partitions, defaultReplicationFactor);
 
@@ -124,8 +111,8 @@ public class KafkaAdminClient implements AdminClient {
         e -> {
           if (e instanceof TopicExistsException) {
             throw new CheckedApiException(
-                "Topic already exists: " + topicName,
-                StatusCode.Code.ALREADY_EXISTS).underlying;
+                    "Topic already exists: " + topicName, StatusCode.Code.ALREADY_EXISTS)
+                .underlying;
           }
           throw new RuntimeException("Failed to create topic: " + topicName, e);
         });
@@ -141,16 +128,16 @@ public class KafkaAdminClient implements AdminClient {
           TopicDescription desc = descriptions.get(topicName);
           if (desc == null) {
             throw new CheckedApiException(
-                "Topic not found: " + topicName,
-                StatusCode.Code.NOT_FOUND).underlying;
+                    "Topic not found: " + topicName, StatusCode.Code.NOT_FOUND)
+                .underlying;
           }
           return buildTopic(path, desc);
         },
         e -> {
           if (e instanceof UnknownTopicOrPartitionException) {
             throw new CheckedApiException(
-                "Topic not found: " + topicName,
-                StatusCode.Code.NOT_FOUND).underlying;
+                    "Topic not found: " + topicName, StatusCode.Code.NOT_FOUND)
+                .underlying;
           }
           throw new RuntimeException("Failed to get topic: " + topicName, e);
         });
@@ -166,16 +153,16 @@ public class KafkaAdminClient implements AdminClient {
           TopicDescription desc = descriptions.get(topicName);
           if (desc == null) {
             throw new CheckedApiException(
-                "Topic not found: " + topicName,
-                StatusCode.Code.NOT_FOUND).underlying;
+                    "Topic not found: " + topicName, StatusCode.Code.NOT_FOUND)
+                .underlying;
           }
           return (long) desc.partitions().size();
         },
         e -> {
           if (e instanceof UnknownTopicOrPartitionException) {
             throw new CheckedApiException(
-                "Topic not found: " + topicName,
-                StatusCode.Code.NOT_FOUND).underlying;
+                    "Topic not found: " + topicName, StatusCode.Code.NOT_FOUND)
+                .underlying;
           }
           throw new RuntimeException("Failed to get partition count: " + topicName, e);
         });
@@ -190,11 +177,12 @@ public class KafkaAdminClient implements AdminClient {
           for (String name : topicNames) {
             // Skip internal Kafka topics
             if (!name.startsWith("__")) {
-              TopicPath topicPath = TopicPath.newBuilder()
-                  .setProject(path.project())
-                  .setLocation(path.location())
-                  .setName(com.google.cloud.pubsublite.TopicName.of(name))
-                  .build();
+              TopicPath topicPath =
+                  TopicPath.newBuilder()
+                      .setProject(path.project())
+                      .setLocation(path.location())
+                      .setName(com.google.cloud.pubsublite.TopicName.of(name))
+                      .build();
               topics.add(Topic.newBuilder().setName(topicPath.toString()).build());
             }
           }
@@ -209,8 +197,10 @@ public class KafkaAdminClient implements AdminClient {
   public ApiFuture<Topic> updateTopic(Topic topic, FieldMask mask) {
     // Kafka doesn't support most topic updates without recreation
     // For now, just return the topic as-is (no-op for updates)
-    log.warning("Topic updates are not fully supported in Kafka backend. " +
-        "Some fields may not be updated: " + mask);
+    log.warning(
+        "Topic updates are not fully supported in Kafka backend. "
+            + "Some fields may not be updated: "
+            + mask);
     return ApiFutures.immediateFuture(topic);
   }
 
@@ -224,8 +214,8 @@ public class KafkaAdminClient implements AdminClient {
         e -> {
           if (e instanceof UnknownTopicOrPartitionException) {
             throw new CheckedApiException(
-                "Topic not found: " + topicName,
-                StatusCode.Code.NOT_FOUND).underlying;
+                    "Topic not found: " + topicName, StatusCode.Code.NOT_FOUND)
+                .underlying;
           }
           throw new RuntimeException("Failed to delete topic: " + topicName, e);
         });
@@ -243,11 +233,12 @@ public class KafkaAdminClient implements AdminClient {
           List<SubscriptionPath> subscriptions = new ArrayList<>();
           for (org.apache.kafka.clients.admin.ConsumerGroupListing group : groups) {
             // Create a subscription path from the consumer group
-            SubscriptionPath subPath = SubscriptionPath.newBuilder()
-                .setProject(path.project())
-                .setLocation(path.location())
-                .setName(com.google.cloud.pubsublite.SubscriptionName.of(group.groupId()))
-                .build();
+            SubscriptionPath subPath =
+                SubscriptionPath.newBuilder()
+                    .setProject(path.project())
+                    .setLocation(path.location())
+                    .setName(com.google.cloud.pubsublite.SubscriptionName.of(group.groupId()))
+                    .build();
             subscriptions.add(subPath);
           }
           return subscriptions;
@@ -272,16 +263,16 @@ public class KafkaAdminClient implements AdminClient {
         descriptions -> {
           if (!descriptions.containsKey(topicName)) {
             throw new CheckedApiException(
-                "Topic not found: " + topicName,
-                StatusCode.Code.NOT_FOUND).underlying;
+                    "Topic not found: " + topicName, StatusCode.Code.NOT_FOUND)
+                .underlying;
           }
           return subscription;
         },
         e -> {
           if (e instanceof UnknownTopicOrPartitionException) {
             throw new CheckedApiException(
-                "Topic not found: " + topicName,
-                StatusCode.Code.NOT_FOUND).underlying;
+                    "Topic not found: " + topicName, StatusCode.Code.NOT_FOUND)
+                .underlying;
           }
           throw new RuntimeException("Failed to create subscription", e);
         });
@@ -303,12 +294,11 @@ public class KafkaAdminClient implements AdminClient {
         descriptions -> {
           if (!descriptions.containsKey(groupId)) {
             throw new CheckedApiException(
-                "Subscription (consumer group) not found: " + groupId,
-                StatusCode.Code.NOT_FOUND).underlying;
+                    "Subscription (consumer group) not found: " + groupId,
+                    StatusCode.Code.NOT_FOUND)
+                .underlying;
           }
-          return Subscription.newBuilder()
-              .setName(path.toString())
-              .build();
+          return Subscription.newBuilder().setName(path.toString()).build();
         },
         e -> {
           throw new RuntimeException("Failed to get subscription: " + groupId, e);
@@ -322,14 +312,13 @@ public class KafkaAdminClient implements AdminClient {
         groups -> {
           List<Subscription> subscriptions = new ArrayList<>();
           for (org.apache.kafka.clients.admin.ConsumerGroupListing group : groups) {
-            SubscriptionPath subPath = SubscriptionPath.newBuilder()
-                .setProject(path.project())
-                .setLocation(path.location())
-                .setName(com.google.cloud.pubsublite.SubscriptionName.of(group.groupId()))
-                .build();
-            subscriptions.add(Subscription.newBuilder()
-                .setName(subPath.toString())
-                .build());
+            SubscriptionPath subPath =
+                SubscriptionPath.newBuilder()
+                    .setProject(path.project())
+                    .setLocation(path.location())
+                    .setName(com.google.cloud.pubsublite.SubscriptionName.of(group.groupId()))
+                    .build();
+            subscriptions.add(Subscription.newBuilder().setName(subPath.toString()).build());
           }
           return subscriptions;
         },
@@ -351,8 +340,8 @@ public class KafkaAdminClient implements AdminClient {
     // Kafka consumer group offset seeking is done via consumer API, not admin API
     // This would require resetting consumer group offsets
     throw new UnsupportedOperationException(
-        "Seek subscription is not directly supported in Kafka backend. " +
-        "Use consumer API to seek to specific offsets.");
+        "Seek subscription is not directly supported in Kafka backend. "
+            + "Use consumer API to seek to specific offsets.");
   }
 
   @Override
@@ -363,7 +352,8 @@ public class KafkaAdminClient implements AdminClient {
         kafkaAdmin.deleteConsumerGroups(Collections.singleton(groupId)).all(),
         v -> null,
         e -> {
-          throw new RuntimeException("Failed to delete subscription (consumer group): " + groupId, e);
+          throw new RuntimeException(
+              "Failed to delete subscription (consumer group): " + groupId, e);
         });
   }
 
@@ -379,8 +369,7 @@ public class KafkaAdminClient implements AdminClient {
   @Override
   public ApiFuture<Reservation> getReservation(ReservationPath path) {
     log.info("Reservations are not supported in Kafka backend. Returning empty reservation.");
-    return ApiFutures.immediateFuture(
-        Reservation.newBuilder().setName(path.toString()).build());
+    return ApiFutures.immediateFuture(Reservation.newBuilder().setName(path.toString()).build());
   }
 
   @Override
@@ -477,9 +466,7 @@ public class KafkaAdminClient implements AdminClient {
         MoreExecutors.directExecutor());
   }
 
-  /**
-   * Adapter to convert KafkaFuture to ApiFuture.
-   */
+  /** Adapter to convert KafkaFuture to ApiFuture. */
   private static class KafkaFutureAdapter<T> {
     private final KafkaFuture<T> kafkaFuture;
 
@@ -491,13 +478,14 @@ public class KafkaAdminClient implements AdminClient {
       com.google.api.core.SettableApiFuture<T> apiFuture =
           com.google.api.core.SettableApiFuture.create();
 
-      kafkaFuture.whenComplete((result, error) -> {
-        if (error != null) {
-          apiFuture.setException(error);
-        } else {
-          apiFuture.set(result);
-        }
-      });
+      kafkaFuture.whenComplete(
+          (result, error) -> {
+            if (error != null) {
+              apiFuture.setException(error);
+            } else {
+              apiFuture.set(result);
+            }
+          });
 
       return apiFuture;
     }

@@ -18,7 +18,6 @@ package com.google.cloud.pubsublite.internal;
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
-import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.cloud.pubsublite.CloudRegion;
 import com.google.cloud.pubsublite.Offset;
@@ -26,9 +25,7 @@ import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.PartitionCursor;
-import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,18 +37,18 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
-import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 
 /**
  * A cursor client implementation for Kafka backend.
  *
- * <p>In Pub/Sub Lite, cursors are a first-class service with specific RPCs (commit, list,
- * streaming commit). In Kafka, cursor management is handled via consumer group offsets.
+ * <p>In Pub/Sub Lite, cursors are a first-class service with specific RPCs (commit, list, streaming
+ * commit). In Kafka, cursor management is handled via consumer group offsets.
  *
- * <p>This implementation provides helper functions that interact with Kafka's consumer group
- * offset management:
+ * <p>This implementation provides helper functions that interact with Kafka's consumer group offset
+ * management:
+ *
  * <ul>
  *   <li>{@link #commitOffset}: Save the position of the consumer for a partition
  *   <li>{@link #readCommittedOffsets}: Retrieve the saved position per partition
@@ -113,8 +110,7 @@ public class KafkaCursorClient implements ApiBackgroundResource {
       log.log(Level.WARNING, "Failed to commit offset", e);
       return ApiFutures.immediateFailedFuture(
           new CheckedApiException(
-                  "Failed to commit offset: " + e.getCause().getMessage(),
-                  StatusCode.Code.INTERNAL)
+                  "Failed to commit offset: " + e.getCause().getMessage(), StatusCode.Code.INTERNAL)
               .underlying);
     }
   }
@@ -240,8 +236,7 @@ public class KafkaCursorClient implements ApiBackgroundResource {
       log.log(Level.WARNING, "Failed to reset offsets", e);
       return ApiFutures.immediateFailedFuture(
           new CheckedApiException(
-                  "Failed to reset offsets: " + e.getCause().getMessage(),
-                  StatusCode.Code.INTERNAL)
+                  "Failed to reset offsets: " + e.getCause().getMessage(), StatusCode.Code.INTERNAL)
               .underlying);
     }
   }

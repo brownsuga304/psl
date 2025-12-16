@@ -29,8 +29,8 @@ import com.google.pubsub.v1.PubsubMessage;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.junit.Test;
 import org.junit.Ignore;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -49,11 +49,12 @@ public class KafkaLiveTest {
     System.out.println("🧪 Testing Kafka publishing functionality...");
 
     // Create topic path
-    TopicPath topicPath = TopicPath.newBuilder()
-        .setProject(ProjectNumber.of(123456L))
-        .setLocation(CloudZone.of(CloudRegion.of("us-central1"), 'a'))
-        .setName(TopicName.of("my-kafka-topic"))
-        .build();
+    TopicPath topicPath =
+        TopicPath.newBuilder()
+            .setProject(ProjectNumber.of(123456L))
+            .setLocation(CloudZone.of(CloudRegion.of("us-central1"), 'a'))
+            .setName(TopicName.of("my-kafka-topic"))
+            .build();
 
     // Configure for local Kafka
     Map<String, Object> kafkaProperties = new HashMap<>();
@@ -62,11 +63,12 @@ public class KafkaLiveTest {
     kafkaProperties.put("retries", 3);
 
     // Create publisher settings
-    PublisherSettings settings = PublisherSettings.newBuilder()
-        .setTopicPath(topicPath)
-        .setMessagingBackend(MessagingBackend.MANAGED_KAFKA)
-        .setKafkaProperties(kafkaProperties)
-        .build();
+    PublisherSettings settings =
+        PublisherSettings.newBuilder()
+            .setTopicPath(topicPath)
+            .setMessagingBackend(MessagingBackend.MANAGED_KAFKA)
+            .setKafkaProperties(kafkaProperties)
+            .build();
 
     System.out.println("✅ Settings configured for Kafka backend");
 
@@ -77,13 +79,15 @@ public class KafkaLiveTest {
       System.out.println("✅ Publisher started successfully!");
 
       // Publish a test message
-      PubsubMessage message = PubsubMessage.newBuilder()
-          .setData(ByteString.copyFromUtf8("Hello from Java Pub/Sub Lite -> Kafka integration!"))
-          .putAttributes("source", "java-pubsublite-client")
-          .putAttributes("test-type", "live-integration-test")
-          .putAttributes("timestamp", String.valueOf(System.currentTimeMillis()))
-          .setOrderingKey("integration-test-key")
-          .build();
+      PubsubMessage message =
+          PubsubMessage.newBuilder()
+              .setData(
+                  ByteString.copyFromUtf8("Hello from Java Pub/Sub Lite -> Kafka integration!"))
+              .putAttributes("source", "java-pubsublite-client")
+              .putAttributes("test-type", "live-integration-test")
+              .putAttributes("timestamp", String.valueOf(System.currentTimeMillis()))
+              .setOrderingKey("integration-test-key")
+              .build();
 
       System.out.println("📤 Publishing test message...");
       ApiFuture<String> future = publisher.publish(message);
@@ -92,12 +96,13 @@ public class KafkaLiveTest {
       // Verify message ID format (partition:offset)
       assertThat(messageId).isNotEmpty();
       assertThat(messageId).contains(":");
-      
+
       System.out.println("🎉 Message published successfully!");
       System.out.println("📋 Message ID: " + messageId);
       System.out.println("");
       System.out.println("🔍 To verify the message was received:");
-      System.out.println("docker-compose exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic my-kafka-topic --from-beginning --property print.headers=true");
+      System.out.println(
+          "docker-compose exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic my-kafka-topic --from-beginning --property print.headers=true");
 
     } finally {
       if (publisher != null) {

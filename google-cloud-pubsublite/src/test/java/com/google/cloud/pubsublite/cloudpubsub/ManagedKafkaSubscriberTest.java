@@ -40,11 +40,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * <p>This test publishes messages to a Kafka topic, then subscribes to receive them.
  *
- * <p>Run with:
- *   ./test-managed-kafka-subscriber.sh BOOTSTRAP_SERVER TOPIC_NAME [NUM_MESSAGES]
+ * <p>Run with: ./test-managed-kafka-subscriber.sh BOOTSTRAP_SERVER TOPIC_NAME [NUM_MESSAGES]
  *
- * <p>Example:
- *   ./test-managed-kafka-subscriber.sh bootstrap.test-kafka.us-central1.managedkafka.myproject.cloud.goog:9092 test-topic 5
+ * <p>Example: ./test-managed-kafka-subscriber.sh
+ * bootstrap.test-kafka.us-central1.managedkafka.myproject.cloud.goog:9092 test-topic 5
  */
 public class ManagedKafkaSubscriberTest {
 
@@ -55,10 +54,12 @@ public class ManagedKafkaSubscriberTest {
     int numMessages = args.length > 2 ? Integer.parseInt(args[2]) : 5;
 
     if (bootstrapServers == null || topicName == null) {
-      System.out.println("Usage: ManagedKafkaSubscriberTest <BOOTSTRAP_SERVER> <TOPIC_NAME> [NUM_MESSAGES]");
+      System.out.println(
+          "Usage: ManagedKafkaSubscriberTest <BOOTSTRAP_SERVER> <TOPIC_NAME> [NUM_MESSAGES]");
       System.out.println();
       System.out.println("Example:");
-      System.out.println("  ./test-managed-kafka-subscriber.sh bootstrap.test-kafka.us-central1.managedkafka.myproject.cloud.goog:9092 test-topic 5");
+      System.out.println(
+          "  ./test-managed-kafka-subscriber.sh bootstrap.test-kafka.us-central1.managedkafka.myproject.cloud.goog:9092 test-topic 5");
       System.exit(1);
     }
 
@@ -71,26 +72,30 @@ public class ManagedKafkaSubscriberTest {
     System.out.println();
 
     // Build paths (project/zone not used for Kafka, but required by API)
-    TopicPath topicPath = TopicPath.newBuilder()
-        .setProject(ProjectNumber.of(1L))
-        .setLocation(CloudZone.of(CloudRegion.of("us-central1"), 'a'))
-        .setName(TopicName.of(topicName))
-        .build();
+    TopicPath topicPath =
+        TopicPath.newBuilder()
+            .setProject(ProjectNumber.of(1L))
+            .setLocation(CloudZone.of(CloudRegion.of("us-central1"), 'a'))
+            .setName(TopicName.of(topicName))
+            .build();
 
-    SubscriptionPath subscriptionPath = SubscriptionPath.newBuilder()
-        .setProject(ProjectNumber.of(1L))
-        .setLocation(CloudZone.of(CloudRegion.of("us-central1"), 'a'))
-        .setName(SubscriptionName.of(topicName))
-        .build();
+    SubscriptionPath subscriptionPath =
+        SubscriptionPath.newBuilder()
+            .setProject(ProjectNumber.of(1L))
+            .setLocation(CloudZone.of(CloudRegion.of("us-central1"), 'a'))
+            .setName(SubscriptionName.of(topicName))
+            .build();
 
     // Kafka properties for Google Managed Kafka
     Map<String, Object> kafkaProps = new HashMap<>();
     kafkaProps.put("bootstrap.servers", bootstrapServers);
     kafkaProps.put("security.protocol", "SASL_SSL");
     kafkaProps.put("sasl.mechanism", "OAUTHBEARER");
-    kafkaProps.put("sasl.login.callback.handler.class",
+    kafkaProps.put(
+        "sasl.login.callback.handler.class",
         "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler");
-    kafkaProps.put("sasl.jaas.config",
+    kafkaProps.put(
+        "sasl.jaas.config",
         "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;");
 
     // Publisher reliability settings
@@ -106,37 +111,39 @@ public class ManagedKafkaSubscriberTest {
     CountDownLatch receiveLatch = new CountDownLatch(numMessages);
 
     // Create message receiver
-    MessageReceiver receiver = new MessageReceiver() {
-      @Override
-      public void receiveMessage(PubsubMessage message, AckReplyConsumer consumer) {
-        String data = message.getData().toStringUtf8();
-        String messageId = message.getMessageId();
+    MessageReceiver receiver =
+        new MessageReceiver() {
+          @Override
+          public void receiveMessage(PubsubMessage message, AckReplyConsumer consumer) {
+            String data = message.getData().toStringUtf8();
+            String messageId = message.getMessageId();
 
-        System.out.println("  Received: " + data);
-        System.out.println("    Message ID:    " + messageId);
-        System.out.println("    Ordering Key:  " + message.getOrderingKey());
-        System.out.println("    Attributes:    " + message.getAttributesMap());
-        System.out.println("    Publish Time:  " + message.getPublishTime());
-        System.out.println();
+            System.out.println("  Received: " + data);
+            System.out.println("    Message ID:    " + messageId);
+            System.out.println("    Ordering Key:  " + message.getOrderingKey());
+            System.out.println("    Attributes:    " + message.getAttributesMap());
+            System.out.println("    Publish Time:  " + message.getPublishTime());
+            System.out.println();
 
-        receivedMessages.put(data, message);
-        receivedCount.incrementAndGet();
-        receiveLatch.countDown();
+            receivedMessages.put(data, message);
+            receivedCount.incrementAndGet();
+            receiveLatch.countDown();
 
-        // Acknowledge the message
-        consumer.ack();
-      }
-    };
+            // Acknowledge the message
+            consumer.ack();
+          }
+        };
 
     // ========== Phase 1: Publish messages ==========
     System.out.println("=== Phase 1: Publishing Messages ===");
     System.out.println();
 
-    PublisherSettings publisherSettings = PublisherSettings.newBuilder()
-        .setTopicPath(topicPath)
-        .setMessagingBackend(MessagingBackend.MANAGED_KAFKA)
-        .setKafkaProperties(kafkaProps)
-        .build();
+    PublisherSettings publisherSettings =
+        PublisherSettings.newBuilder()
+            .setTopicPath(topicPath)
+            .setMessagingBackend(MessagingBackend.MANAGED_KAFKA)
+            .setKafkaProperties(kafkaProps)
+            .build();
 
     Publisher publisher = Publisher.create(publisherSettings);
 
@@ -150,13 +157,14 @@ public class ManagedKafkaSubscriberTest {
       for (int i = 1; i <= numMessages; i++) {
         String payload = testId + ":message-" + i;
 
-        PubsubMessage message = PubsubMessage.newBuilder()
-            .setData(ByteString.copyFromUtf8(payload))
-            .putAttributes("test_id", testId)
-            .putAttributes("index", String.valueOf(i))
-            .putAttributes("total", String.valueOf(numMessages))
-            .setOrderingKey("test-ordering-key")
-            .build();
+        PubsubMessage message =
+            PubsubMessage.newBuilder()
+                .setData(ByteString.copyFromUtf8(payload))
+                .putAttributes("test_id", testId)
+                .putAttributes("index", String.valueOf(i))
+                .putAttributes("total", String.valueOf(numMessages))
+                .setOrderingKey("test-ordering-key")
+                .build();
 
         System.out.println("Publishing: " + payload);
         ApiFuture<String> future = publisher.publish(message);
@@ -185,17 +193,18 @@ public class ManagedKafkaSubscriberTest {
     consumerProps.put("group.id", "test-consumer-" + testId);
     consumerProps.put("auto.offset.reset", "earliest"); // Read from beginning
 
-    SubscriberSettings subscriberSettings = SubscriberSettings.newBuilder()
-        .setSubscriptionPath(subscriptionPath)
-        .setReceiver(receiver)
-        .setPerPartitionFlowControlSettings(
-            FlowControlSettings.builder()
-                .setMessagesOutstanding(1000)
-                .setBytesOutstanding(100 * 1024 * 1024) // 100MB
-                .build())
-        .setMessagingBackend(MessagingBackend.MANAGED_KAFKA)
-        .setKafkaProperties(consumerProps)
-        .build();
+    SubscriberSettings subscriberSettings =
+        SubscriberSettings.newBuilder()
+            .setSubscriptionPath(subscriptionPath)
+            .setReceiver(receiver)
+            .setPerPartitionFlowControlSettings(
+                FlowControlSettings.builder()
+                    .setMessagesOutstanding(1000)
+                    .setBytesOutstanding(100 * 1024 * 1024) // 100MB
+                    .build())
+            .setMessagingBackend(MessagingBackend.MANAGED_KAFKA)
+            .setKafkaProperties(consumerProps)
+            .build();
 
     Subscriber subscriber = Subscriber.create(subscriberSettings);
 
@@ -239,7 +248,12 @@ public class ManagedKafkaSubscriberTest {
         }
       } else {
         System.out.println("=== TEST TIMEOUT ===");
-        System.out.println("Only received " + receivedCount.get() + " of " + numMessages + " messages before timeout.");
+        System.out.println(
+            "Only received "
+                + receivedCount.get()
+                + " of "
+                + numMessages
+                + " messages before timeout.");
         System.exit(1);
       }
 

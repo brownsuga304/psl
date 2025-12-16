@@ -113,17 +113,14 @@ public abstract class PublisherSettings {
   // For testing.
   abstract SinglePartitionPublisherBuilder.Builder underlyingBuilder();
 
-  /**
-   * The messaging backend to use. Defaults to PUBSUB_LITE for backward compatibility.
-   */
+  /** The messaging backend to use. Defaults to PUBSUB_LITE for backward compatibility. */
   public abstract MessagingBackend messagingBackend();
 
   /**
    * Kafka-specific configuration properties. Only used when messagingBackend is MANAGED_KAFKA.
-   * Common properties include:
-   * - "bootstrap.servers": Kafka broker addresses
-   * - "compression.type": Compression algorithm (e.g., "snappy", "gzip")
-   * - "max.in.flight.requests.per.connection": Pipelining configuration
+   * Common properties include: - "bootstrap.servers": Kafka broker addresses - "compression.type":
+   * Compression algorithm (e.g., "snappy", "gzip") - "max.in.flight.requests.per.connection":
+   * Pipelining configuration
    */
   public abstract Optional<Map<String, Object>> kafkaProperties();
 
@@ -186,14 +183,10 @@ public abstract class PublisherSettings {
     abstract Builder setUnderlyingBuilder(
         SinglePartitionPublisherBuilder.Builder underlyingBuilder);
 
-    /**
-     * Sets the messaging backend. Defaults to PUBSUB_LITE.
-     */
+    /** Sets the messaging backend. Defaults to PUBSUB_LITE. */
     public abstract Builder setMessagingBackend(MessagingBackend backend);
 
-    /**
-     * Sets Kafka-specific properties. Only used when backend is MANAGED_KAFKA.
-     */
+    /** Sets Kafka-specific properties. Only used when backend is MANAGED_KAFKA. */
     public abstract Builder setKafkaProperties(Map<String, Object> properties);
 
     public abstract PublisherSettings build();
@@ -216,7 +209,7 @@ public abstract class PublisherSettings {
     if (messagingBackend() == MessagingBackend.MANAGED_KAFKA) {
       return new KafkaPartitionPublisherFactory(this);
     }
-    
+
     // Existing Pub/Sub Lite implementation
     PublisherServiceClient client = newServiceClient();
     ByteString publisherClientId = UuidBuilder.toByteString(UuidBuilder.generate());
@@ -278,7 +271,7 @@ public abstract class PublisherSettings {
     if (messagingBackend() == MessagingBackend.MANAGED_KAFKA) {
       return new com.google.cloud.pubsublite.cloudpubsub.internal.KafkaPublisher(this);
     }
-    
+
     if (batchingSettings().getFlowControlSettings().getMaxOutstandingElementCount() != null
         || batchingSettings().getFlowControlSettings().getMaxOutstandingRequestBytes() != null) {
       throw new CheckedApiException(

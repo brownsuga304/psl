@@ -30,8 +30,8 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 
 /**
- * A simple Kafka publisher that directly uses KafkaProducer without the complex
- * partition watching infrastructure needed for Pub/Sub Lite.
+ * A simple Kafka publisher that directly uses KafkaProducer without the complex partition watching
+ * infrastructure needed for Pub/Sub Lite.
  */
 public class KafkaPublisher extends AbstractApiService implements Publisher {
 
@@ -40,28 +40,31 @@ public class KafkaPublisher extends AbstractApiService implements Publisher {
 
   public KafkaPublisher(PublisherSettings settings) {
     this.topicName = settings.topicPath().name().value();
-    
+
     // Set up Kafka producer configuration
-    Map<String, Object> kafkaProps = new HashMap<>(settings.kafkaProperties().orElse(new HashMap<>()));
-    
+    Map<String, Object> kafkaProps =
+        new HashMap<>(settings.kafkaProperties().orElse(new HashMap<>()));
+
     // Ensure key and value serializers are set
     kafkaProps.putIfAbsent("key.serializer", ByteArraySerializer.class.getName());
     kafkaProps.putIfAbsent("value.serializer", ByteArraySerializer.class.getName());
-    
+
     try {
       this.kafkaProducer = new KafkaProducer<>(kafkaProps);
     } catch (Exception e) {
       // Provide more helpful error message for common issues
       String bootstrapServers = (String) kafkaProps.get("bootstrap.servers");
-      if (e.getCause() instanceof org.apache.kafka.common.config.ConfigException 
+      if (e.getCause() instanceof org.apache.kafka.common.config.ConfigException
           && e.getMessage().contains("No resolvable bootstrap urls")) {
         throw new RuntimeException(
-            "Failed to resolve Kafka bootstrap servers: " + bootstrapServers + ". " +
-            "This could indicate:\n" +
-            "1. The Google Managed Kafka cluster doesn't exist or isn't accessible\n" +
-            "2. Network/DNS resolution issues\n" +
-            "3. Incorrect bootstrap server URL format\n" +
-            "Please verify the cluster exists with: gcloud managed-kafka clusters describe <cluster-name> --location=<region> --project=<project>", 
+            "Failed to resolve Kafka bootstrap servers: "
+                + bootstrapServers
+                + ". "
+                + "This could indicate:\n"
+                + "1. The Google Managed Kafka cluster doesn't exist or isn't accessible\n"
+                + "2. Network/DNS resolution issues\n"
+                + "3. Incorrect bootstrap server URL format\n"
+                + "Please verify the cluster exists with: gcloud managed-kafka clusters describe <cluster-name> --location=<region> --project=<project>",
             e);
       }
       throw new RuntimeException("Failed to initialize Kafka producer: " + e.getMessage(), e);
@@ -71,26 +74,28 @@ public class KafkaPublisher extends AbstractApiService implements Publisher {
   @Override
   public ApiFuture<String> publish(PubsubMessage message) {
     SettableApiFuture<String> future = SettableApiFuture.create();
-    
+
     try {
       // Convert PubsubMessage to Kafka ProducerRecord
       ProducerRecord<byte[], byte[]> record = convertToKafkaRecord(message);
-      
+
       // Send to Kafka
-      kafkaProducer.send(record, (RecordMetadata metadata, Exception exception) -> {
-        if (exception != null) {
-          future.setException(exception);
-        } else {
-          // Return partition:offset format like Pub/Sub Lite message IDs
-          String messageId = metadata.partition() + ":" + metadata.offset();
-          future.set(messageId);
-        }
-      });
-      
+      kafkaProducer.send(
+          record,
+          (RecordMetadata metadata, Exception exception) -> {
+            if (exception != null) {
+              future.setException(exception);
+            } else {
+              // Return partition:offset format like Pub/Sub Lite message IDs
+              String messageId = metadata.partition() + ":" + metadata.offset();
+              future.set(messageId);
+            }
+          });
+
     } catch (Exception e) {
       future.setException(e);
     }
-    
+
     return future;
   }
 
@@ -100,24 +105,27 @@ public class KafkaPublisher extends AbstractApiService implements Publisher {
     if (!message.getOrderingKey().isEmpty()) {
       key = message.getOrderingKey().getBytes();
     }
-    
+
     // Message data becomes Kafka value
     byte[] value = message.getData().toByteArray();
-    
+
     // Convert attributes to Kafka headers
     ProducerRecord<byte[], byte[]> record = new ProducerRecord<>(topicName, key, value);
-    
+
     // Add all attributes as headers
     for (Map.Entry<String, String> attr : message.getAttributesMap().entrySet()) {
       record.headers().add(attr.getKey(), attr.getValue().getBytes());
     }
-    
+
     // Add event time as special header if present
     if (message.hasPublishTime()) {
-      record.headers().add("pubsublite.publish_time", 
-          String.valueOf(message.getPublishTime().getSeconds()).getBytes());
+      record
+          .headers()
+          .add(
+              "pubsublite.publish_time",
+              String.valueOf(message.getPublishTime().getSeconds()).getBytes());
     }
-    
+
     return record;
   }
 
